@@ -125,7 +125,7 @@ require('repl').start({
                 ob-javascript-babel-presets)) "\s"))
 
 (defun ob-javascript-trim-use-strict (body)
-  (string-join (split-string (replace-regexp-in-string "['\"]use[\s\t]strict[\"'];?" "" body) nil t) "\s"))
+  (replace-regexp-in-string "['\"]use[\s\t]strict[\"'];?\n+" "" body))
 
 (defun ob-javascript-compile (body)
   (let ((temp-file (concat (temporary-file-directory)
@@ -172,7 +172,7 @@ require('repl').start({
       (cadr body))))
 
 (defun ob-javascript--output (result file)
-  (unless file (ob-javascript-trim-use-strict result)))
+  (unless file result))
 
 (defun ob-javascript--babel (source)
   (with-temp-buffer
@@ -183,8 +183,8 @@ require('repl').start({
      (buffer-string))))
 
 (defun ob-javascript--eval (body file &optional dir)
-  (setq body (ob-javascript-compile
-              body))
+  (setq body (ob-javascript-trim-use-strict (ob-javascript-compile
+                                             body)))
   (let ((tmp-source (org-babel-temp-file "javascript-"))
         (tmp (org-babel-temp-file "javascript-")))
     (with-temp-file tmp-source
@@ -269,8 +269,11 @@ require('repl').start({
         (concat ob-javascript-process-output output)))
 
 (defun ob-javascript--wait (timeout what)
-  (while (and (not (string-match-p what ob-javascript-process-output))
-              (> timeout 0))
+  (while (and
+          (or (null what)
+              (null ob-javascript-process-output)
+              (not (string-match-p what ob-javascript-process-output)))
+          (> timeout 0))
     (setq timeout (- timeout 0.2))
     (sit-for 0.2)))
 
@@ -294,7 +297,7 @@ require('repl').start({
                          (get-buffer-create name)
                        (start-process
                         name name
-                        "chromium"
+                        ob-javascript:browser-binary
                         "--headless"
                         "--disable-gpu"
                         "--repl" session))))
