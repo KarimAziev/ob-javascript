@@ -46,8 +46,9 @@
   :group 'ob-javascript
   :type 'string)
 
-(defcustom ob-javascript-babel-presets
-  '("--presets=@babel/preset-env,@babel/preset-typescript,@babel/preset-react")
+(defcustom ob-javascript-babel-options
+  '("--presets=@babel/preset-env,@babel/preset-typescript,@babel/preset-react"
+    "--plugins @babel/plugin-transform-runtime")
   "Options for npx babel."
   :type '(repeat string)
   :group 'ob-javascript)
@@ -122,7 +123,7 @@ require('repl').start({
                                 ob-javascript-babel-node-modules-path)))
                 `("npx babel" ,source-file)
                 `("--out-file" ,target-file)
-                ob-javascript-babel-presets)) "\s"))
+                ob-javascript-babel-options)) "\s"))
 
 (defun ob-javascript-trim-use-strict (body)
   (replace-regexp-in-string "['\"]use[\s\t]strict[\"'];?\n+" "" body))
