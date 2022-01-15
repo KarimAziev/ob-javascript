@@ -8,11 +8,23 @@
 - no need to =return=
 - avoid using =let= or =const=
 
+** Install
+
+#+begin_src emacs-lisp :eval no
+(use-package ob-javascript
+  :straight (ob-javascript
+             :type git
+             :host github
+             :files ("ob-javascript.el" ".babelrc" "*.js")
+             :repo "KarimAziev/ob-javascript"))
+#+end_src
+
 ** supported header arguments
 
 - session
 - file
 - babel
+- dir
 
 ** examples
 
@@ -21,7 +33,7 @@
 : #+BEGIN_SRC javascript
 : new Date
 : #+END_SRC
-: 
+:
 : #+RESULTS:
 : : 2016-11-26T05:23:47.867Z
 
@@ -30,49 +42,64 @@
 if the code block yields a promise, it will be inspected after
 resolution, the default timeout is 5 seconds
 
-: #+BEGIN_SRC javascript
+: #+BEGIN_SRC javascript :dir ~/local_babel/
 : fetch = require('node-fetch')
-: 
+:
 : fetch('https://api.github.com/repos/zweifisch/ob-coffee/languages')
 :   .then(res => res.json())
 : #+END_SRC
-: 
+:
 : #+RESULTS:
 : : { 'Emacs Lisp': 4069, JavaScript: 184 }
 
 *** babel
 
-requires `babel-cli`
+Options for babel can be customized with ~ob-javascript-babel-options~.
 
-: #+BEGIN_SRC javascript :babel
+Plugins and presets used in options should exists in ~ob-javascript-babel-node-modules-path~.
+
+: #+BEGIN_SRC javascript :babel yes :dir ~/local_babel/
 : import fetch from 'node-fetch'
-: 
+:
 : (async () => {
 :   let res = await fetch('https://api.github.com/repos/zweifisch/ob-javascript/languages')
 :   return res.json()
 : })()
 : #+END_SRC
-: 
+:
 : #+RESULTS:
 : : { 'Emacs Lisp': 3993, JavaScript: 864 }
+
+*** dir
+
+Directory context to evalute code within it.
+
+: #+begin_src javascript :babel yes :dir ~/local_babel/
+: import * as R from "ramda";
+:
+: R.compose(Math.abs, R.add(1), R.multiply(2))(-4)
+: #+end_src
+:
+: #+RESULTS:
+: 7
 
 *** file
 
 if the code block yields buffer or stream, and =:file= is specified,
 the result will be written to disk
 
-: #+BEGIN_SRC javascript :file canvas.png
+: #+BEGIN_SRC javascript :file canvas.png :dir ~/local_babel/
 : Canvas = require('canvas')
 : canvas = new Canvas(100, 100)
 : ctx = canvas.getContext('2d')
-: 
+:
 : ctx.arc(50, 50, 50, -Math.PI * 0.5, Math.PI, false)
 : ctx.fillStyle = '#0ff'
 : ctx.fill()
-: 
+:
 : canvas.toBuffer()
 : #+END_SRC
-: 
+:
 : #+RESULTS:
 [[file:canvas.png]]
 
@@ -81,6 +108,6 @@ the result will be written to disk
 : #+BEGIN_SRC javascript :session http://gnu.org
 : document.querySelector('title').text
 : #+END_SRC
-: 
+:
 : #+RESULTS:
 : : The GNU Operating System and the Free Software Movement
