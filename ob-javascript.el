@@ -118,19 +118,17 @@ require('repl').start({
                                     (make-temp-name "script") ".js"))
         (result)
         (command))
-    (setq result (with-temp-file temp-file
-                   (insert body)
-                   (write-region nil nil temp-file)
-                   (setq command
-                         (ob-javascript-make-babel-command
-                          temp-file temp-compiled-file))
-                   (message command)
-                   (with-output-to-temp-buffer (current-buffer)
-                     (shell-command command))))
-    (setq result (with-current-buffer
-                     (delay-mode-hooks
-                       (find-file-noselect temp-compiled-file)
-                       (get-file-buffer temp-compiled-file))
+    (with-temp-file temp-file
+      (insert body)
+      (write-region nil nil temp-file)
+      (setq command
+            (ob-javascript-make-babel-command
+             temp-file temp-compiled-file))
+      (message command)
+      (with-output-to-temp-buffer (current-buffer)
+        (shell-command command)))
+    (setq result (with-temp-buffer
+                   (insert-file-contents temp-compiled-file nil)
                    (buffer-string)))
     (list 0 result)))
 
