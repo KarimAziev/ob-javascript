@@ -30,7 +30,7 @@
 ;;; Code:
 (require 'ob)
 (require 'json)
-
+(require 'shell)
 (defvar ob-javascript-process-output nil)
 
 (defvar ob-javascript-eoe "\u2029")
@@ -325,7 +325,6 @@ require('repl').start({
   (let ((proc)
         (buffer (generate-new-buffer (format "*%s*" command)))
         (command command))
-    (km-message command)
     (progn (switch-to-buffer buffer)
            (with-current-buffer buffer
              (if (file-exists-p project-dir)
@@ -337,7 +336,6 @@ require('repl').start({
                               (split-string command nil t))
                          buffer command))
              (shell-command-save-pos-or-erase)
-             (require 'shell)
              (shell-mode)
              (view-mode +1))
            (set-process-sentinel
