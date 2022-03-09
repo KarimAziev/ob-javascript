@@ -218,6 +218,12 @@ require('repl').start({
 (defun ob-javascript-resolve-node-modules-dir (dir)
   (ob-javascript-resolve-module dir "node_modules"))
 
+(defun ob-javascript-node-modules-global ()
+  (when-let ((dir (km-exec "npm config get prefix")))
+    (setq dir (expand-file-name "lib/node_modules/" dir))
+    (when (file-exists-p dir)
+      dir)))
+
 (defun ob-javascript--node-path (&optional dir)
   (let ((result (replace-regexp-in-string
                  "[:]+" ":"
@@ -228,7 +234,8 @@ require('repl').start({
                             (delete nil
                                     (append
                                      `(,ob-javascript-babel-node-modules-path
-                                       ,(and dir (ob-javascript-resolve-node-modules-dir dir)))
+                                       ,(and dir (ob-javascript-resolve-node-modules-dir dir))
+                                       ,(ob-javascript-node-modules-global))
                                      (when-let ((node-path (getenv "NODE_PATH")))
                                        (split-string node-path ":" t))))))
                    ":")
