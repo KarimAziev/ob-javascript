@@ -22,6 +22,7 @@ module.exports = __ob_eval__ = function (path, eoe, outputPath) {
         this.stringify = this.stringify.bind(this);
         this.serialize = this.serialize.bind(this);
         this.tryStorage = this.tryStorage.bind(this);
+        this.annotateFn2 = this.annotateFn2.bind(this);
       }
 
       static makeSerialize(params) {
@@ -108,7 +109,20 @@ module.exports = __ob_eval__ = function (path, eoe, outputPath) {
 
         return result
           ? 'function'.concat(result).concat('{}')
-          : this.tryStringify(result);
+          : this.annotateFn2(str);
+      }
+
+      annotateFn2(fn) {
+        const name = fn.name || fn.toString() || '';
+        const len = fn.length || 0;
+        let idx = 0;
+        let list;
+        list = new Array(len);
+        while (idx < len) {
+          list[idx] = `arg{idx}`;
+          idx += 1;
+        }
+        return 'function ' + name + '(' + list.join(', ') + ') {}';
       }
 
       stringify(obj) {
