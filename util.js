@@ -119,7 +119,7 @@ module.exports = __ob_eval__ = function (path, eoe, outputPath) {
         let list;
         list = new Array(len);
         while (idx < len) {
-          list[idx] = `arg{idx}`;
+          list[idx] = `arg${idx}`;
           idx += 1;
         }
         return 'function ' + name + '(' + list.join(', ') + ') {}';
