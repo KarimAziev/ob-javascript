@@ -28,25 +28,30 @@
 ;;
 
 ;;; Code:
+
 (require 'ob)
 (require 'json)
 (require 'shell)
-(defvar ob-javascript-process-output nil)
 
+(defvar org-babel-tangle-lang-exts)
+(add-to-list 'org-babel-tangle-lang-exts '("javascript" . "js"))
+
+(defvar ob-javascript-process-output nil)
 (defvar ob-javascript-eoe "\u2029")
 (defvar ob-javascript-eoe-js "\\u2029")
 (defvar ob-javascript-timeout 5)
 
 (defgroup ob-javascript nil
-  "org-babel functions for javascript evaluation"
+  "Org-babel functions for javascript evaluation."
   :group 'org)
 
 (defcustom ob-javascript:browser-binary "chromium"
-  "browser binary"
+  "Browser binary."
   :group 'ob-javascript
   :type 'string)
 
-(defvar org-babel-default-header-args:javascript '())
+(defvar org-babel-header-args:javascript '((babel . ((yes no)))))
+(defvar org-babel-default-header-args:javascript '((:babel . "yes")))
 (defvar ob-javascript-data-root (file-name-directory load-file-name))
 
 (defcustom ob-javascript-babel-config-file
@@ -63,7 +68,8 @@
 (defcustom ob-javascript-babel-options
   `("--config-file" ,ob-javascript-babel-config-file)
   "Options for compiling with babel.
-Plugins and presets used in options should exists in `ob-javascript-babel-node-modules-path'."
+Plugins and presets used in options should exists in
+`ob-javascript-babel-node-modules-path'."
   :type '(repeat string)
   :group 'ob-javascript)
 
@@ -76,42 +82,41 @@ specifying a variable of the same value."
     (replace-regexp-in-string "\n" "\\\\n" (format "%S" var))))
 
 (defun ob-javascript-variable-assignments:js (params)
-  "Return list of Javascript statements assigning the block's variables."
+  "Return the babel variable assignments in PARAMS."
   (mapcar
    (lambda (pair) (format "var %s=%s;"
                      (car pair) (ob-javascript-js-var-to-js (cdr pair))))
    (org-babel--get-vars params)))
 
-(defvar ob-javascript-util-string (with-temp-buffer
-                                    (insert-file-contents
-                                     (expand-file-name "util.js" ob-javascript-data-root))
-                                    (buffer-string)))
+(defvar ob-javascript-util-string
+  (with-temp-buffer
+    (insert-file-contents
+     (expand-file-name "util.js" ob-javascript-data-root))
+    (buffer-string)))
 
 (defvar ob-javascript-repl-string
-  (string-join (split-string (format "__ob_eval__ = %s\n
-require('repl').start({
-    prompt: '',
-    input: process.stdin,
-    output: process.stdout,
-    ignoreUndefined: true,
-    useColors: false,
-    terminal: false
-})" ob-javascript-util-string)) "\s"))
+  "require('repl').start({  prompt: '', input: process.stdin, output: process.stdout, ignoreUndefined: true, useColors: false, terminal: false })")
 
-(defun ob-javascript-make-babel-command (&optional source-file target-file options)
+(defun ob-javascript-make-babel-command (&optional source-file target-file)
+  "Return shell command string for compiling SOURCE-FILE into TARGET-FILE."
   (string-join
    (delete nil (append
                 `(,(and ob-javascript-babel-node-modules-path
                         (concat "NODE_PATH="
                                 ob-javascript-babel-node-modules-path)))
-                `(,(expand-file-name ".bin/babel" ob-javascript-babel-node-modules-path) ,source-file)
+                `(,(expand-file-name ".bin/babel"
+                                     ob-javascript-babel-node-modules-path)
+                  ,source-file)
                 `,(and target-file (list "--out-file" target-file))
-                ob-javascript-babel-options  (list "&> /dev/null"))) "\s"))
+                ob-javascript-babel-options  (list "&> /dev/null")))
+   "\s"))
 
 (defun ob-javascript-trim-use-strict (body)
+	"Remove 'use-strict' from BODY."
   (replace-regexp-in-string "['\"]use[\s\t]strict[\"'];?\n+" "" body))
 
 (defun ob-javascript-babel-compile (body)
+  "Compile BODY and return list with status code and result."
   (let ((temp-file (concat (temporary-file-directory)
                            (make-temp-name "script") ".tsx"))
         (temp-compiled-file (concat (temporary-file-directory)
@@ -133,6 +138,9 @@ require('repl').start({
     (list 0 result)))
 
 (defun org-babel-execute:javascript (body params)
+	"Execute a block of Javascript code BODY with org-babel.
+This function is called by `org-babel-execute-src-block'.
+PARAMS is alist."
   (setq body (org-babel-expand-body:generic
               body params (ob-javascript-variable-assignments:js params)))
   (let ((session (or (cdr (assoc :session params)) "default"))
@@ -160,9 +168,12 @@ require('repl').start({
       (cadr body))))
 
 (defun ob-javascript--output (result file)
+	"Return RESULT when FILE is nil."
   (unless file result))
 
-(defun ob-javascript--eval (body file &optional dir verbose)
+(defun ob-javascript--eval (body file &optional directory verbose)
+  "Eval BODY in the context of DIRECTORY.
+If VERBOSE and FILE is non nil, output will be expanded."
   (let ((tmp-source (org-babel-temp-file "javascript-"))
         (tmp (org-babel-temp-file "javascript-")))
     (with-temp-file tmp-source
@@ -179,7 +190,7 @@ require('repl').start({
                       (or file ""))))
     (ob-javascript--output
      (ob-javascript--shell-command-to-string
-      (list (format "NODE_PATH=%s" (ob-javascript--node-path dir)))
+      (list (format "NODE_PATH=%s" (ob-javascript--node-path directory)))
       (list "node" tmp))
      file)))
 
@@ -196,7 +207,9 @@ require('repl').start({
 
 (defun ob-javascript--shell-command-to-string (environ command)
   (with-temp-buffer
-    (let ((process-environment (append '("NODE_NO_WARNINGS=1") environ process-environment)))
+    (let ((process-environment
+           (append
+            '("NODE_NO_WARNINGS=1") environ process-environment)))
       (apply 'call-process (car command) nil t nil (cdr command))
       (buffer-string))))
 
@@ -219,7 +232,7 @@ require('repl').start({
   (ob-javascript-resolve-module dir "node_modules"))
 
 (defun ob-javascript-node-modules-global ()
-  (when-let ((dir (km-exec "npm config get prefix")))
+  (when-let ((dir (shell-command-to-string "npm config get prefix")))
     (setq dir (expand-file-name "lib/node_modules/" dir))
     (when (file-exists-p dir)
       dir)))
@@ -230,14 +243,17 @@ require('repl').start({
                  (concat
                   (string-join
                    (seq-uniq
-                    (mapcar 'expand-file-name
-                            (delete nil
-                                    (append
-                                     `(,ob-javascript-babel-node-modules-path
-                                       ,(and dir (ob-javascript-resolve-node-modules-dir dir))
-                                       ,(ob-javascript-node-modules-global))
-                                     (when-let ((node-path (getenv "NODE_PATH")))
-                                       (split-string node-path ":" t))))))
+                    (mapcar
+                     'expand-file-name
+                     (delete
+                      nil
+                      (append
+                       `(,ob-javascript-babel-node-modules-path
+                         ,(and dir (ob-javascript-resolve-node-modules-dir
+                                    dir))
+                         ,(ob-javascript-node-modules-global))
+                       (when-let ((node-path (getenv "NODE_PATH")))
+                         (split-string node-path ":" t))))))
                    ":")
                   ":"))))
     result))
@@ -257,7 +273,7 @@ require('repl').start({
             (insert "__ob_eval__ ="
                     ob-javascript-util-string
                     "\n"
-                    "require('repl').start({  prompt: '', input: process.stdin, output: process.stdout, ignoreUndefined: true,useColors: false, terminal: false })"))
+                    ob-javascript-repl-string))
           (start-process name name "node" tmp)))
       (sit-for 0.5)
       (set-process-filter (get-process name)
@@ -295,7 +311,9 @@ require('repl').start({
                          (get-buffer-create name)
                        (start-process
                         name name
-                        ob-javascript:browser-binary
+                        (or
+                         (executable-find "chromium")
+                         (executable-find "google-chrome"))
                         "--headless"
                         "--disable-gpu"
                         "--repl" session))))
@@ -396,7 +414,9 @@ require('repl').start({
               (plugins (ob-javascript-flatten (cdr (assoc 'plugins config))))
               (package-json))
           (setq dependencies (append dependencies presets plugins))))
-      (append '("@babel/core" "@babel/cli") (seq-uniq (delete nil dependencies))))))
+      (append '("@babel/core" "@babel/cli") (seq-uniq
+                                             (delete nil
+                                                     dependencies))))))
 
 (defun ob-javascript-make-npm-install-command ()
   (when-let ((dependencies (ob-javascript-get-missing-dependencies)))
@@ -404,11 +424,14 @@ require('repl').start({
 
 (defun ob-javascript-get-missing-dependencies ()
   (seq-remove (lambda (it) (file-exists-p
-                       (expand-file-name it ob-javascript-babel-node-modules-path)))
+                       (expand-file-name
+                        it
+                        ob-javascript-babel-node-modules-path)))
               (ob-javascript-get-config-dependencies)))
 
 ;;;###autoload
 (defun ob-javascript-ensure-project ()
+	"Interactivelly create directory with babel and plugins."
   (interactive)
   (when-let ((project-dir (replace-regexp-in-string
                            "/node_modules/?$" ""
