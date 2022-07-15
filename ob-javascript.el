@@ -1,13 +1,29 @@
-;;; ob-javascript.el --- org-babel functions for javascript evaluation
+;;; ob-javascript.el --- Org babel for javascript  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2016 Feng Zhou
 
 ;; Author: Feng Zhou <zf.pascal@gmail.com>
-;; URL: http://github.com/zweifisch/ob-javascript
-;; Keywords: org babel javascript
-;; Version: 0.0.2
+;;         Karim Aziiev <karim.aziiev@gmail.com>
+;; URL: https://github.com/KarimAziev/ob-javascript
+;; Keywords: convenience, outlines
+;; Version: 0.0.3
 ;; Created: 26th Nov 2016
-;; Package-Requires: ((org "8"))
+;; Package-Requires: ((emacs "27.1"))
+
+;; This file is NOT part of GNU Emacs.
+
+;; This program is free software; you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation; either version 3, or (at your option)
+;; any later version.
+;;
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+;;
+;; You should have received a copy of the GNU General Public License
+;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ;; This file is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -43,14 +59,16 @@
 
 (defgroup ob-javascript nil
   "Org-babel functions for javascript evaluation."
-  :group 'org)
+  :group 'org-babel)
 
-(defcustom ob-javascript:browser-binary "chromium"
+(defcustom ob-javascript-browser-binary "chromium"
   "Browser binary."
   :group 'ob-javascript
   :type 'string)
 
-(defvar org-babel-header-args:javascript '((babel . ((yes no)))))
+(defconst org-babel-header-args:javascript '((babel . ((yes no))))
+  "Default arguments to use when evaluating a JavaScript source block.")
+
 (defvar org-babel-default-header-args:javascript '((:babel . "yes")))
 (defvar ob-javascript-data-root (file-name-directory load-file-name))
 
@@ -81,7 +99,7 @@ specifying a variable of the same value."
       (concat "[" (mapconcat #'ob-javascript-js-var-to-js var ", ") "]")
     (replace-regexp-in-string "\n" "\\\\n" (format "%S" var))))
 
-(defun ob-javascript-variable-assignments:js (params)
+(defun org-babel-variable-assignments:javascript (params)
   "Return the babel variable assignments in PARAMS."
   (mapcar
    (lambda (pair) (format "var %s=%s;"
@@ -111,9 +129,13 @@ specifying a variable of the same value."
                 ob-javascript-babel-options  (list "&> /dev/null")))
    "\s"))
 
-(defun ob-javascript-trim-use-strict (body)
-	"Remove 'use-strict' from BODY."
-  (replace-regexp-in-string "['\"]use[\s\t]strict[\"'];?\n+" "" body))
+(defun ob-javascript-normalize-body-for-chrome-repl (body)
+	"Remove 'use-strict' and new lines from BODY."
+  (string-join (split-string (replace-regexp-in-string
+                              "['\"]use[\s\t]strict[\"'];?\n+" ""
+                              body)
+                             nil t)
+               "\s"))
 
 (defun ob-javascript-babel-compile (body)
   "Compile BODY and return list with status code and result."
@@ -137,16 +159,34 @@ specifying a variable of the same value."
                    (buffer-string)))
     (list 0 result)))
 
+(defun ob-javascript-read-results (results)
+  "Convert RESULTS into an appropriate elisp value.
+If RESULTS look like a table, then convert them into an
+Emacs-lisp table, otherwise return the results as a string."
+  (org-babel-read
+   (if (and (stringp results)
+	    (string-prefix-p "[" results)
+	    (string-suffix-p "]" results))
+       (org-babel-read
+        (concat "'"
+                (replace-regexp-in-string
+                 "\\[" "(" (replace-regexp-in-string
+                            "\\]" ")" (replace-regexp-in-string
+                                       ",[[:space:]]" " "
+				       (replace-regexp-in-string
+					"'" "\"" results))))))
+     results)))
+
+;;;###autoload
 (defun org-babel-execute:javascript (body params)
 	"Execute a block of Javascript code BODY with org-babel.
 This function is called by `org-babel-execute-src-block'.
 PARAMS is alist."
   (setq body (org-babel-expand-body:generic
-              body params (ob-javascript-variable-assignments:js params)))
+              body params (org-babel-variable-assignments:javascript params)))
   (let ((session (or (cdr (assoc :session params)) "default"))
-        (result-type (cdr (assoc :result-type params)))
-        (dir (cdr (assoc :dir params)))
         (file (cdr (assoc :file params)))
+        (dir (cdr (assoc :dir params)))
         (verbose (cdr (assoc :verbose params)))
         (compliled))
     (setq compliled (if (equal (cdr (assoc :babel params)) "yes")
@@ -156,15 +196,24 @@ PARAMS is alist."
                       (list 't body)))
     (if-let ((compiled-body (when (car compliled)
                               (cadr compliled))))
-        (cond ((string= "none" session)
-               (ob-javascript--eval compiled-body file dir verbose))
-              ((or
-                (string-prefix-p "http://" session)
-                (string-prefix-p "https://" session))
-               (ob-javascript--ensure-browser-session session)
-               (ob-javascript--get-result-value
-                (ob-javascript--eval-in-browser-repl session compiled-body)))
-              (t (ob-javascript--eval-with-session session compiled-body file)))
+        (let ((result (string-trim
+                       (cond ((string= "none" session)
+                              (ob-javascript--eval compiled-body
+                                                   file
+                                                   dir
+                                                   verbose))
+                             ((or
+                               (string-prefix-p "http://" session)
+                               (string-prefix-p "https://" session))
+                              (ob-javascript--ensure-browser-session
+                               session)
+                              (ob-javascript--get-result-value
+                               (ob-javascript--eval-in-browser-repl
+                                session compiled-body)))
+                             (t (ob-javascript--eval-with-session
+                                 session compiled-body file))))))
+          (org-babel-result-cond (cdr (assq :result-params params))
+            result (ob-javascript-read-results result)))
       (cadr body))))
 
 (defun ob-javascript--output (result file)
@@ -195,6 +244,7 @@ If VERBOSE and FILE is non nil, output will be expanded."
      file)))
 
 (defun ob-javascript--eval-with-session (session body file)
+  "Evaluate BODY in SESSION and return result if FILE is nil."
   (let ((tmp (org-babel-temp-file "javascript-")))
     (ob-javascript--ensure-session session)
     (with-temp-file tmp (insert body))
@@ -206,14 +256,17 @@ If VERBOSE and FILE is non nil, output will be expanded."
      file)))
 
 (defun ob-javascript--shell-command-to-string (environ command)
+  "Run shell COMMAND in current `process-environment' merged with ENVIRON."
   (with-temp-buffer
     (let ((process-environment
            (append
             '("NODE_NO_WARNINGS=1") environ process-environment)))
-      (apply 'call-process (car command) nil t nil (cdr command))
+      (apply #'call-process (car command) nil t nil (cdr command))
       (buffer-string))))
 
 (defun ob-javascript-resolve-module (dir &optional file)
+  "Starting at DIR look up directory hierarchy for FILE.
+If found return full path to FILE."
   (when-let ((result (if file
                          (let ((default-directory (expand-file-name dir))
                                (found))
@@ -229,10 +282,15 @@ If VERBOSE and FILE is non nil, output will be expanded."
       result)))
 
 (defun ob-javascript-resolve-node-modules-dir (dir)
+	"Starting at DIR look up directory hierarchy for node_modules.
+If found return path to node_modules."
   (ob-javascript-resolve-module dir "node_modules"))
 
 (defun ob-javascript-node-modules-global ()
-  (when-let ((dir (shell-command-to-string "npm config get prefix")))
+  "Return directory with global npm dependencies."
+  (when-let ((dir (string-trim
+                   (shell-command-to-string
+                    "npm config get prefix"))))
     (setq dir (expand-file-name "lib/node_modules/" dir))
     (when (file-exists-p dir)
       dir)))
@@ -244,7 +302,7 @@ If VERBOSE and FILE is non nil, output will be expanded."
                   (string-join
                    (seq-uniq
                     (mapcar
-                     'expand-file-name
+                     #'expand-file-name
                      (delete
                       nil
                       (append
@@ -279,7 +337,7 @@ If VERBOSE and FILE is non nil, output will be expanded."
       (set-process-filter (get-process name)
                           'ob-javascript--process-filter))))
 
-(defun ob-javascript--process-filter (process output)
+(defun ob-javascript--process-filter (_process output)
   (setq ob-javascript-process-output
         (concat ob-javascript-process-output output)))
 
@@ -326,7 +384,7 @@ If VERBOSE and FILE is non nil, output will be expanded."
          "Type a Javascript expression to evaluate or \"quit\" to exit.")))))
 
 (defun ob-javascript--eval-in-browser-repl (session body)
-  (setq body (ob-javascript-trim-use-strict body))
+  (setq body (ob-javascript-normalize-body-for-chrome-repl body))
   (let ((name (format "*ob-javascript-%s*" session)))
     (setq ob-javascript-process-output "")
     (process-send-string name (format "%s\n\"%s\"\n" body ob-javascript-eoe))
@@ -342,9 +400,11 @@ If VERBOSE and FILE is non nil, output will be expanded."
   (let* ((results (assoc-default 'result (json-read-from-string response)))
          (value (assoc-default 'value results))
          (description (assoc-default 'description results)))
-    (or value description results response)))
+    (or value description results response))
+  response)
 
 (defun ob-javascript-exec-in-dir (command project-dir)
+  "Execute COMMAND in PROJECT-DIR."
   (let ((proc)
         (buffer (generate-new-buffer (format "*%s*" command)))
         (command command))
@@ -363,7 +423,7 @@ If VERBOSE and FILE is non nil, output will be expanded."
              (view-mode +1))
            (set-process-sentinel
             proc
-            (lambda (process state)
+            (lambda (process _state)
               (let ((output (with-current-buffer
                                 (process-buffer process)
                               (buffer-string))))
@@ -374,55 +434,56 @@ If VERBOSE and FILE is non nil, output will be expanded."
                   (user-error (format "%s\n%s" command output))))))
            (set-process-filter proc #'comint-output-filter))))
 
-(defun ob-javascript-read-babel-config (&optional file)
+(defun ob-javascript-read-babel-config (file)
+  "Read json FILE and return alist."
   (with-temp-buffer
     (save-excursion (insert-file-contents file)
                     (let ((json-object-type 'alist)
                           (json-array-type 'list))
                       (json-read)))))
 
-(defun ob-javascript-flatten (items)
+(defun ob-javascript-flatten-alist (alist)
+  "Flattenize ALIST."
   (mapcar (lambda (opt)
             (cond
-             ((symbolp opt)
-              opt)
-             ((stringp opt)
-              opt)
-             ((null opt)
-              opt)
-             ((eq opt t)
+             ((seq-find (lambda (f) (funcall f opt))
+                        '(booleanp symbolp stringp null))
               opt)
              ((consp opt)
               (if (listp (car opt))
-                  (ob-javascript-flatten (car opt))
+                  (ob-javascript-flatten-alist (car opt))
                 (car opt)))
              ((and (listp opt))
-              (mapcar 'ob-javascript-flatten opt))
+              (mapcar #'ob-javascript-flatten-alist opt))
              (t opt)))
-          items))
+          alist))
 
 (defun ob-javascript-get-config-dependencies ()
+  "Return babel dependencies based on `ob-javascript-babel-config-file'."
   (when-let ((configs
-              (mapcar 'ob-javascript-read-babel-config
+              (mapcar #'ob-javascript-read-babel-config
                       (seq-filter
-                       'file-exists-p
+                       #'file-exists-p
                        (delete nil
                                `(,ob-javascript-babel-config-file))))))
     (let ((dependencies))
       (dolist (config configs)
-        (let ((presets (ob-javascript-flatten (cdr (assoc 'presets config))))
-              (plugins (ob-javascript-flatten (cdr (assoc 'plugins config))))
-              (package-json))
+        (let ((presets (ob-javascript-flatten-alist (cdr
+                                                     (assoc 'presets config))))
+              (plugins (ob-javascript-flatten-alist (cdr
+                                                     (assoc 'plugins config)))))
           (setq dependencies (append dependencies presets plugins))))
       (append '("@babel/core" "@babel/cli") (seq-uniq
                                              (delete nil
                                                      dependencies))))))
 
 (defun ob-javascript-make-npm-install-command ()
+  "Return npm install command string with missed dependencies for babel."
   (when-let ((dependencies (ob-javascript-get-missing-dependencies)))
     (string-join (append '("npm install --save-dev") dependencies) "\s")))
 
 (defun ob-javascript-get-missing-dependencies ()
+	"Return missing dependencies for babel."
   (seq-remove (lambda (it) (file-exists-p
                        (expand-file-name
                         it
