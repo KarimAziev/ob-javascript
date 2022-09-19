@@ -78,7 +78,9 @@
   :type 'file
   :group 'ob-javascript)
 
-(defcustom ob-javascript-babel-node-modules-path "~/ob-javascript/node_modules/"
+(defcustom ob-javascript-babel-node-modules-path (expand-file-name
+                                                  "node_modules"
+                                                  ob-javascript-data-root)
   "Directory with babel executable, plugins and presets."
   :type 'directory
   :group 'ob-javascript)
@@ -492,11 +494,11 @@ If found return path to node_modules."
 
 ;;;###autoload
 (defun ob-javascript-ensure-project ()
-	"Interactivelly create directory with babel and plugins."
+  "Interactivelly create directory with babel and plugins."
   (interactive)
   (when-let ((project-dir (replace-regexp-in-string
                            "/node_modules/?$" ""
-                           ob-javascript-babel-node-modules-path)))
+                           ob-javascript-data-root)))
     (when (and (not (file-exists-p project-dir))
                (yes-or-no-p (format "Create directory %s?" project-dir)))
       (make-directory project-dir t))
