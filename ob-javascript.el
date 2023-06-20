@@ -132,8 +132,8 @@ specifying a variable of the same value."
    "\s"))
 
 (defun ob-javascript-normalize-body-for-chrome-repl (body)
-	"Remove use-strict and new lines from BODY."
-	(string-join (split-string (replace-regexp-in-string
+  "Remove use-strict and new lines from BODY."
+  (string-join (split-string (replace-regexp-in-string
                               "['\"]use[\s\t]strict[\"'];?\n+" ""
                               body)
                              nil t)
@@ -162,30 +162,30 @@ specifying a variable of the same value."
     (list 0 result)))
 
 (defun ob-javascript-read-results (results)
-	"Convert RESULTS into an appropriate elisp value.
+  "Convert RESULTS into an appropriate elisp value.
 If RESULTS look like a table, then convert them into an
 Emacs-lisp table, otherwise return the results as a string."
-	(org-babel-read
+  (org-babel-read
    (if (and (stringp results)
-						(string-prefix-p "[" results)
-						(or (string-suffix-p "]" results)
-								(string-suffix-p ";" results)))
+            (string-prefix-p "[" results)
+            (or (string-suffix-p "]" results)
+                (string-suffix-p ";" results)))
        (org-babel-read
         (concat "'"
                 (replace-regexp-in-string
                  "\\[" "(" (replace-regexp-in-string
                             "\\]" ")" (replace-regexp-in-string
                                        ",[[:space:]]" " "
-																			 (replace-regexp-in-string
-																				"'" "\"" results))))))
+                                       (replace-regexp-in-string
+                                        "'" "\"" results))))))
      results)))
 
 ;;;###autoload
 (defun org-babel-execute:javascript (body params)
-	"Execute a block of Javascript code BODY with org-babel.
+  "Execute a block of Javascript code BODY with org-babel.
 This function is called by `org-babel-execute-src-block'.
 PARAMS is alist."
-	(setq body (org-babel-expand-body:generic
+  (setq body (org-babel-expand-body:generic
               body params (org-babel-variable-assignments:javascript params)))
   (let ((session (or (cdr (assoc :session params)) "default"))
         (file (cdr (assoc :file params)))
@@ -198,7 +198,7 @@ PARAMS is alist."
                           (ob-javascript-babel-compile body))
                       (list 't body)))
     (if-let ((compiled-body
-							(when (car compliled)
+              (when (car compliled)
                 (cadr compliled))))
         (let ((result (string-trim
                        (cond ((string= "none" session)
@@ -221,7 +221,7 @@ PARAMS is alist."
       (cadr body))))
 
 (defun ob-javascript--output (result file)
-	"Return RESULT when FILE is nil."
+  "Return RESULT when FILE is nil."
   (unless file result))
 
 (defun ob-javascript--eval (body file &optional directory verbose)
@@ -286,7 +286,7 @@ If found return full path to FILE."
       result)))
 
 (defun ob-javascript-resolve-node-modules-dir (dir)
-	"Starting at DIR look up directory hierarchy for node_modules.
+  "Starting at DIR look up directory hierarchy for node_modules.
 If found return path to node_modules."
   (ob-javascript-resolve-module dir "node_modules"))
 
@@ -300,8 +300,8 @@ If found return path to node_modules."
       dir)))
 
 (defun ob-javascript--node-path (&optional dir)
-	"Add DIR to node path."
-	(let ((result (replace-regexp-in-string
+  "Add DIR to node path."
+  (let ((result (replace-regexp-in-string
                  "[:]+" ":"
                  (concat
                   (string-join
@@ -322,8 +322,8 @@ If found return path to node_modules."
     result))
 
 (defun ob-javascript--ensure-session (session)
-	"Ensure SESSION."
-	(let ((name (format "*javascript-%s*" session))
+  "Ensure SESSION."
+  (let ((name (format "*javascript-%s*" session))
         (node-path (ob-javascript--node-path))
         (tmp (concat (org-babel-temp-file "repl") ".js")))
     (unless (and (get-process name)
@@ -344,13 +344,13 @@ If found return path to node_modules."
                           'ob-javascript--process-filter))))
 
 (defun ob-javascript--process-filter (_process output)
-	"Concat `ob-javascript-process-output' with OUTPUT."
-	(setq ob-javascript-process-output
+  "Concat `ob-javascript-process-output' with OUTPUT."
+  (setq ob-javascript-process-output
         (concat ob-javascript-process-output output)))
 
 (defun ob-javascript--wait (timeout what)
-	"Redisplay, then wait for TIMEOUT depending on WHAT."
-	(while (and
+  "Redisplay, then wait for TIMEOUT depending on WHAT."
+  (while (and
           (or (null what)
               (null ob-javascript-process-output)
               (not (string-match-p what ob-javascript-process-output)))
@@ -359,8 +359,8 @@ If found return path to node_modules."
     (sit-for 0.2)))
 
 (defun ob-javascript--eval-in-repl (session body)
-	"Eval BODY in SESSION repl."
-	(let ((name (format "*javascript-%s*" session)))
+  "Eval BODY in SESSION repl."
+  (let ((name (format "*javascript-%s*" session)))
     (setq ob-javascript-process-output nil)
     (process-send-string name (format "%s\n" body))
     (accept-process-output (get-process name) nil nil 1)
@@ -371,8 +371,8 @@ If found return path to node_modules."
       "" ob-javascript-process-output))))
 
 (defun ob-javascript--ensure-browser-session (session)
-	"Create chromium browser SESSION."
-	(let ((name (format "*ob-javascript-%s*" session)))
+  "Create chromium browser SESSION."
+  (let ((name (format "*ob-javascript-%s*" session)))
     (unless (and (get-process name)
                  (process-live-p (get-process name)))
       (let ((process (with-current-buffer
@@ -394,8 +394,8 @@ If found return path to node_modules."
          "Type a Javascript expression to evaluate or \"quit\" to exit.")))))
 
 (defun ob-javascript--eval-in-browser-repl (session body)
-	"Evaluate BODY in browser repl SESSION."
-	(setq body (ob-javascript-normalize-body-for-chrome-repl body))
+  "Evaluate BODY in browser repl SESSION."
+  (setq body (ob-javascript-normalize-body-for-chrome-repl body))
   (let ((name (format "*ob-javascript-%s*" session)))
     (setq ob-javascript-process-output "")
     (process-send-string name (format "%s\n\"%s\"\n" body ob-javascript-eoe))
@@ -408,8 +408,8 @@ If found return path to node_modules."
       "" ob-javascript-process-output))))
 
 (defun ob-javascript--get-result-value (response)
-	"Return result from RESPONSE."
-	(let* ((results (assoc-default 'result (json-read-from-string response)))
+  "Return result from RESPONSE."
+  (let* ((results (assoc-default 'result (json-read-from-string response)))
          (value (assoc-default 'value results))
          (description (assoc-default 'description results)))
     (or value description results response))
@@ -495,7 +495,7 @@ If found return path to node_modules."
     (string-join (append '("npm install --save-dev") dependencies) "\s")))
 
 (defun ob-javascript-get-missing-dependencies ()
-	"Return missing dependencies for babel."
+  "Return missing dependencies for babel."
   (seq-remove (lambda (it) (file-exists-p
                        (expand-file-name
                         it
