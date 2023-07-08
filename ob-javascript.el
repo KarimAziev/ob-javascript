@@ -200,22 +200,22 @@ PARAMS is alist."
     (if-let ((compiled-body
               (when (car compliled)
                 (cadr compliled))))
-        (let ((result (string-trim
-                       (cond ((string= "none" session)
-                              (ob-javascript--eval compiled-body
-                                                   file
-                                                   dir
-                                                   verbose))
-                             ((or
-                               (string-prefix-p "http://" session)
-                               (string-prefix-p "https://" session))
-                              (ob-javascript--ensure-browser-session
-                               session)
-                              (ob-javascript--get-result-value
-                               (ob-javascript--eval-in-browser-repl
-                                session compiled-body)))
-                             (t (ob-javascript--eval-with-session
-                                 session compiled-body file))))))
+        (let ((result
+               (cond ((string= "none" session)
+                      (ob-javascript--eval compiled-body
+                                           file
+                                           dir
+                                           verbose))
+                     ((or
+                       (string-prefix-p "http://" session)
+                       (string-prefix-p "https://" session))
+                      (ob-javascript--ensure-browser-session
+                       session)
+                      (ob-javascript--get-result-value
+                       (ob-javascript--eval-in-browser-repl
+                        session compiled-body)))
+                     (t (ob-javascript--eval-with-session
+                         session compiled-body file)))))
           (org-babel-result-cond (cdr (assq :result-params params))
             result (ob-javascript-read-results result)))
       (cadr body))))
