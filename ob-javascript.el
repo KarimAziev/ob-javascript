@@ -168,16 +168,16 @@ Emacs-lisp table, otherwise return the results as a string."
   (org-babel-read
    (if (and (stringp results)
             (string-prefix-p "[" results)
-            (or (string-suffix-p "]" results)
-                (string-suffix-p ";" results)))
-       (org-babel-read
-        (concat "'"
-                (replace-regexp-in-string
-                 "\\[" "(" (replace-regexp-in-string
-                            "\\]" ")" (replace-regexp-in-string
-                                       ",[[:space:]]" " "
-                                       (replace-regexp-in-string
-                                        "'" "\"" results))))))
+            (string-match-p "\\][\s\t\n]*;?$" results))
+       (let ((res (string-trim results)))
+         (org-babel-read
+          (concat "'"
+                  (replace-regexp-in-string
+                   "\\[" "(" (replace-regexp-in-string
+                              "\\]" ")" (replace-regexp-in-string
+                                         ",[[:space:]]" " "
+                                         (replace-regexp-in-string
+                                          "'" "\"" res)))))))
      results)))
 
 ;;;###autoload
