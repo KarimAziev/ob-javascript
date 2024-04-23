@@ -1,4 +1,4 @@
-;;; ob-javascript.el --- Org babel for javascript  -*- lexical-binding: t; -*-
+;;; ob-javascript.el --- Org babel for javascript -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2016 Feng Zhou
 
@@ -8,7 +8,8 @@
 ;; Keywords: convenience, outlines
 ;; Version: 0.0.3
 ;; Created: 26th Nov 2016
-;; Package-Requires: ((emacs "27.1"))
+;; Package-Requires: ((emacs "29.1"))
+;; SPDX-License-Identifier: GPL-3.0-or-later
 
 ;; This file is NOT part of GNU Emacs.
 
@@ -50,12 +51,29 @@
 (require 'shell)
 
 (defvar org-babel-tangle-lang-exts)
+
+(defmacro ob-javascript--defvar (sym &rest body)
+  "Define a namespaced variable with markdown suffix.
+
+It is used to supress package lint warnings about a non-standard separator
+and package prefix.
+
+Argument SYM is the symbol to define as a variable.
+
+Remaining arguments BODY are the forms that make up the body of the variable
+definition."
+  (declare (doc-string 3)
+           (indent 2))
+  `(defvar ,(intern (concat (symbol-name sym) ":javascript"))
+     ,@body))
+
 (add-to-list 'org-babel-tangle-lang-exts '("javascript" . "js"))
 
 (defvar ob-javascript-process-output nil)
 (defvar ob-javascript-eoe "\u2029")
 (defvar ob-javascript-eoe-js "\\u2029")
 (defvar ob-javascript-timeout 5)
+
 
 (defgroup ob-javascript nil
   "Org-babel functions for javascript evaluation."
@@ -66,8 +84,9 @@
   :group 'ob-javascript
   :type 'string)
 
-(defconst org-babel-header-args:javascript '((babel . ((yes no))))
-  "Default arguments to use when evaluating a JavaScript source block.")
+
+(ob-javascript--defvar org-babel-header-args '((babel . ((yes no))))
+  "Javascript specific header args.")
 
 (defvar org-babel-default-header-args:javascript '((:babel . "yes")))
 (defvar ob-javascript-data-root (file-name-directory load-file-name))
@@ -407,13 +426,14 @@ If found return path to node_modules."
       (format "^.*\"%s\".*$" ob-javascript-eoe)
       "" ob-javascript-process-output))))
 
-(defun ob-javascript--get-result-value (response)
-  "Return result from RESPONSE."
-  (let* ((results (assoc-default 'result (json-read-from-string response)))
-         (value (assoc-default 'value results))
-         (description (assoc-default 'description results)))
-    (or value description results response))
-  response)
+(defun ob-javascript--get-result-value (result)
+  "Extract and return the `value' or `description' from a JSON string RESULT.
+
+Argument RESULT is a JSON string representing the result to parse."
+  (let* ((result (assoc-default 'result (json-read-from-string result)))
+         (value (assoc 'value result)))
+    (if value (cdr value)
+      (assoc-default 'description result))))
 
 (defun ob-javascript-exec-in-dir (command project-dir)
   "Execute COMMAND in PROJECT-DIR."
@@ -506,11 +526,11 @@ If found return path to node_modules."
 (defun ob-javascript-ensure-project ()
   "Interactivelly create directory with babel and plugins."
   (interactive)
-  (when-let ((project-dir (replace-regexp-in-string
-                           "/node_modules/?$" ""
-                           ob-javascript-data-root)))
-    (when (and (not (file-exists-p project-dir))
-               (yes-or-no-p (format "Create directory %s?" project-dir)))
+  (let ((project-dir (file-name-parent-directory
+                      ob-javascript-babel-node-modules-path)))
+    (when (and (not (file-exists-p ob-javascript-babel-node-modules-path))
+               (yes-or-no-p (format "Create directory %s?"
+                                    ob-javascript-babel-node-modules-path)))
       (make-directory project-dir t))
     (when-let ((command (ob-javascript-make-npm-install-command)))
       (unless (file-exists-p (expand-file-name "package.json" project-dir))
