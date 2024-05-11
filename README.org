@@ -12,11 +12,13 @@
 
 #+begin_src emacs-lisp :eval no
 (use-package ob-javascript
-  :straight (ob-javascript
-             :type git
-             :host github
-             :files ("ob-javascript.el" ".babelrc" "*.js")
-             :repo "KarimAziev/ob-javascript"))
+  :straight (:host github
+             :flavor nil
+             :repo "KarimAziev/ob-javascript"
+             :files ("ob-javascript.el" ".babelrc" "*.js" "node_modules")
+             :pre-build (("make" "build")))
+  :init
+  (setq-default org-babel-default-header-args:javascript '((:babel . "yes"))))
 #+end_src
 
 ** supported header arguments
