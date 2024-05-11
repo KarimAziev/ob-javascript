@@ -6,9 +6,7 @@ EL_FILE = ob-javascript.el
 JS_FILES = util.js repl.js
 BABELRC = .babelrc
 
-NPM_DEPENDENCIES = @babel/core @babel/cli @babel/preset-env @babel/preset-typescript @babel/preset-react @babel/plugin-transform-runtime @babel/plugin-transform-arrow-functions babel-plugin-remove-use-strict
-
-NPM_INSTALL_CMD = npm install --save-dev $(NPM_DEPENDENCIES)
+NPM_INSTALL_CMD = npm install
 
 .PHONY: all clean build
 
