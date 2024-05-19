@@ -141,13 +141,13 @@ specifying a variable of the same value."
   (string-join
    (delete nil (append
                 `(,(and ob-javascript-babel-node-modules-path
-                        (concat "NODE_PATH="
-                                ob-javascript-babel-node-modules-path)))
+                    (concat "NODE_PATH="
+                     ob-javascript-babel-node-modules-path)))
                 `(,(expand-file-name ".bin/babel"
-                                     ob-javascript-babel-node-modules-path)
+                    ob-javascript-babel-node-modules-path)
                   ,source-file)
                 `,(and target-file (list "--out-file" target-file))
-                ob-javascript-babel-options  (list "&> /dev/null")))
+                ob-javascript-babel-options))
    "\s"))
 
 (defun ob-javascript-normalize-body-for-chrome-repl (body)
