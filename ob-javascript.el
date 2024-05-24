@@ -247,7 +247,8 @@ PARAMS is alist."
   "Eval BODY in the context of DIRECTORY.
 If VERBOSE and FILE is non nil, output will be expanded."
   (let ((tmp-source (org-babel-temp-file "javascript-"))
-        (tmp (org-babel-temp-file "javascript-")))
+        (tmp (org-babel-temp-file "javascript-"))
+        (result))
     (with-temp-file tmp-source
       (insert body))
     (with-temp-file tmp
@@ -260,11 +261,16 @@ If VERBOSE and FILE is non nil, output will be expanded."
                         "__ob_eval__('%s', '', '%s')")
                       tmp-source
                       (or file ""))))
-    (ob-javascript--output
-     (ob-javascript--shell-command-to-string
-      (list (format "NODE_PATH=%s" (ob-javascript--node-path directory)))
-      (list "node" tmp))
-     file)))
+    (setq result
+          (ob-javascript--output
+           (ob-javascript--shell-command-to-string
+            (list (format "NODE_PATH=%s" (ob-javascript--node-path directory)))
+            (list "node" tmp))
+           file))
+    (dolist (temp-file (list tmp-source tmp))
+      (when (file-exists-p temp-file)
+        (delete-file temp-file)))
+    result))
 
 (defun ob-javascript--eval-with-session (session body file)
   "Evaluate BODY in SESSION and return result if FILE is nil."
