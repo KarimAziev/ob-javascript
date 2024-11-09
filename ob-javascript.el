@@ -216,7 +216,7 @@ PARAMS is alist."
                           (ob-javascript-ensure-project)
                           (ob-javascript-babel-compile body))
                       (list 't body)))
-    (if-let ((compiled-body
+    (if-let* ((compiled-body
               (when (car compliled)
                 (cadr compliled))))
         (let ((result
@@ -296,7 +296,7 @@ If VERBOSE and FILE is non nil, output will be expanded."
 (defun ob-javascript-resolve-module (dir &optional file)
   "Starting at DIR look up directory hierarchy for FILE.
 If found return full path to FILE."
-  (when-let ((result (if file
+  (when-let* ((result (if file
                          (let ((default-directory (expand-file-name dir))
                                (found))
                            (setq found (locate-dominating-file
@@ -317,7 +317,7 @@ If found return path to node_modules."
 
 (defun ob-javascript-node-modules-global ()
   "Return directory with global npm dependencies."
-  (when-let ((dir (string-trim
+  (when-let* ((dir (string-trim
                    (shell-command-to-string
                     "npm config get prefix"))))
     (setq dir (expand-file-name "lib/node_modules/" dir))
@@ -340,7 +340,7 @@ If found return path to node_modules."
                          ,(and dir (ob-javascript-resolve-node-modules-dir
                                     dir))
                          ,(ob-javascript-node-modules-global))
-                       (when-let ((node-path (getenv "NODE_PATH")))
+                       (when-let* ((node-path (getenv "NODE_PATH")))
                          (split-string node-path ":" t))))))
                    ":")
                   ":"))))
@@ -498,7 +498,7 @@ Argument RESULT is a JSON string representing the result to parse."
 
 (defun ob-javascript-get-config-dependencies ()
   "Return babel dependencies based on `ob-javascript-babel-config-file'."
-  (when-let ((configs
+  (when-let* ((configs
               (mapcar #'ob-javascript-read-babel-config
                       (seq-filter
                        #'file-exists-p
@@ -517,7 +517,7 @@ Argument RESULT is a JSON string representing the result to parse."
 
 (defun ob-javascript-make-npm-install-command ()
   "Return npm install command string with missed dependencies for babel."
-  (when-let ((dependencies (ob-javascript-get-missing-dependencies)))
+  (when-let* ((dependencies (ob-javascript-get-missing-dependencies)))
     (string-join (append '("npm install --save-dev") dependencies) "\s")))
 
 (defun ob-javascript-get-missing-dependencies ()
@@ -538,7 +538,7 @@ Argument RESULT is a JSON string representing the result to parse."
                (yes-or-no-p (format "Create directory %s?"
                                     ob-javascript-babel-node-modules-path)))
       (make-directory project-dir t))
-    (when-let ((command (ob-javascript-make-npm-install-command)))
+    (when-let* ((command (ob-javascript-make-npm-install-command)))
       (unless (file-exists-p (expand-file-name "package.json" project-dir))
         (setq command (concat "npm init -y && " command)))
       (when (yes-or-no-p (format "Run %s?" command))
